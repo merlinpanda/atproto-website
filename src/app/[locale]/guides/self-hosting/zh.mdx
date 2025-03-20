@@ -1,0 +1,168 @@
+export const metadata = {
+  title: 'PDS 自托管',
+  description:
+    '自托管 Bluesky PDS 意味着运行你自己的个人数据服务器，该服务器能够与更广泛的 ATProto 网络联合。',
+}
+
+# PDS 自托管
+
+自托管 Bluesky PDS 意味着运行你自己的个人数据服务器，该服务器能够与更广泛的 ATProto 网络联合。{{className: 'lead'}}
+
+## 目录
+
+* [自托管 PDS 的准备](#preparation-for-self-hosting-pds)
+* [打开云防火墙以使用 HTTP 和 HTTPS](#open-your-cloud-firewall-for-http-and-https)
+* [为你的域名配置 DNS](#configure-dns-for-your-domain)
+* [检查 DNS 是否按预期工作](#check-that-dns-is-working-as-expected)
+* [Ubuntu 20.04/22.04 和 Debian 11/12 上的安装程序](#installer-on-ubuntu-20-04-22-04-and-debian-11-12)
+* [验证你的 PDS 是否在线且可访问](#verifying-that-your-pds-is-online-and-accessible)
+* [使用 pdsadmin 创建账户](#creating-an-account-using-pdsadmin)
+* [使用邀请码创建账户](#creating-an-account-using-an-invite-code)
+* [将 Bluesky 应用程序与你的 PDS 结合使用](#using-the-bluesky-app-with-your-pds)
+* [更新你的 PDS](#updating-your-pds)
+* [获取帮助](#getting-help)
+
+
+## Preparation for self-hosting PDS
+
+在任何云提供商上启动服务器，[Digital Ocean](https://digitalocean.com/) 和 [Vultr](https://vultr.com/) 是两个受欢迎的选择。
+
+确保你可以通过 ssh 访问你的服务器并且拥有 root 访问权限。
+
+**服务器要求**
+* 公共 IPv4 地址
+* 公共 DNS 名称
+* 允许在端口 80/tcp 和 443/tcp 上进行公共入站互联网访问
+
+**服务器建议**
+|                  |              |
+| ---------------- | ------------ |
+| 操作系统 | Ubuntu 22.04 |
+| 缓存 (RAM)     | 1 GB         |
+| CPU 核数        | 1            |
+| 存储          | 20 GB SSD    |
+| 架构    | amd64, arm64 |
+| 用户数  | 1-20         |
+
+**Note:** 将入站 ssh 访问（端口 22/tcp）限制到你自己计算机的公共 IP 地址是一种很好的安全做法。你可以使用 [ifconfig.me](https://ifconfig.me/) 检查你当前的公共 IP 地址。
+
+## Open your cloud firewall for HTTP and HTTPS
+
+最常见的错误配置原因之一是未正确打开防火墙端口。请务必仔细检查此步骤。
+
+在你的云提供商的控制台中，以下端口应该向来自公共互联网的入站访问开放。
+
+* 80/tcp (仅用于 TLS 认证验证)
+* 443/tcp (用于所有申请请求)
+
+**Note:** 无需设置 TLS 或将请求从端口 80 重定向到 443，因为 Docker 组合文件中包含的 Caddy Web 服务器将为你处理此事。
+
+## Configure DNS for your domain
+
+从你的 DNS 提供商的控制面板中，设置一个带有指向你的服务器的记录的域。
+
+| Name            | Type | Value         | TTL |
+| --------------- | ---- | ------------- | --- |
+| `example.com`   | `A`  | `12.34.56.78` | 600 |
+| `*.example.com` | `A`  | `12.34.56.78` | 600 |
+
+**Note:**
+* 将 `example.com` 替换为你的域名。
+* 将 `12.34.56.78` 替换为你的服务器IP地址。
+* 一些提供商可能会使用 `@` 符号来表示你的域名的根。
+* 当允许用户在你的 PDS 上创建新帐户时，需要通配符记录。
+* TTL 可以是任意值，但 600（10 分钟）是合理的
+
+## Check that DNS is working as expected
+
+使用 [DNS Checker](https://dnschecker.org/) 之类的服务来验证你是否可以解析域名。
+
+检查示例（记录类型 `A`）：
+* `example.com`
+* `random.example.com`
+* `test123.example.com`
+
+这些都应该返回你服务器的公共 IP。
+
+## Installer on Ubuntu 20.04/22.04 and Debian 11/12
+
+通过 ssh 在你的服务器上，使用 wget 下载安装程序脚本：
+
+```bash
+wget https://raw.githubusercontent.com/bluesky-social/pds/main/installer.sh
+```
+
+或者使用 curl 下载：
+
+```bash
+curl https://raw.githubusercontent.com/bluesky-social/pds/main/installer.sh >installer.sh
+```
+
+然后使用 bash 运行安装程序：
+
+```bash
+sudo bash installer.sh
+```
+
+## Verifying that your PDS is online and accessible
+
+> 在实时网络中使用 PDS 内容时，最常见的问题是人们将提供的 Caddy 配置替换为 nginx、apache 或类似的反向代理。获取正确的 TLS 证书、WebSockets 和虚拟服务器名称可能很棘手。我们目前不为其他配置提供技术支持。
+
+你可以通过请求健康检查端点来检查你的服务器是否在线且健康。
+
+你可以在浏览器中访问 `https://example.com/xrpc/_health` 。你应该看到带有版本的 JSON 响应，例如：
+
+```
+{"version":"0.2.2-beta.2"}
+```
+
+你还需要检查 WebSockets 是否正常工作，以便其余网络能够从你的 PDS 中获取内容。你可以通过安装 `wsdump` 之类的工具并运行以下命令进行测试：
+
+```bash
+wsdump "wss://example.com/xrpc/com.atproto.sync.subscribeRepos?cursor=0"
+```
+
+请注意，在 PDS 中创建事件之前，WebSocket 上不会输出任何事件，因此如果配置成功，上述命令可能会继续运行而没有输出。
+
+## Creating an account using pdsadmin
+
+在你的服务器上使用 ssh，使用 `pdsadmin` 创建一个帐户。
+
+```bash
+sudo pdsadmin account create
+```
+
+## Creating an account using an invite code
+
+在你的服务器上使用 ssh，使用 `pdsadmin` 创建邀请代码。
+
+```bash
+sudo pdsadmin create-invite-code
+```
+
+使用该应用程序创建帐户时，输入此邀请码。
+
+## Using the Bluesky app with your PDS
+
+你可以使用 Bluesky 应用程序连接到你的 PDS。
+
+1. 获取 Bluesky 应用程序
+    * [Bluesky for Web](https://bsky.app/)
+    * [Bluesky for iPhone](https://apps.apple.com/us/app/bluesky-social/id6444370199)
+    * [Bluesky for Android](https://play.google.com/store/apps/details?id=xyz.blueskyweb.app)
+1. 输入你的 PDS 的 URL (e.g. `https://example.com/`)
+
+_Note: 由于子域 TLS 证书是按需创建的，因此可能需要 10-30 秒才能访问您的句柄。如果您没有看到您的第一篇帖子/个人资料，请等待 30 秒并尝试发布另一篇帖子。_
+
+## Updating your PDS
+
+建议您保持 PDS 更新至最新版本，否则可能会出现问题。您可以使用 `pdsadmin` 工具来更新您的 PDS。
+
+```bash
+sudo pdsadmin update
+```
+
+## Getting help
+
+- [Visit the GitHub](https://github.com/bluesky-social/pds) 进行问题和讨论。
+- [加入 AT 协议 PDS 管理员 Discord](https://discord.gg/e7hpHxRfBP) 与其他托管实例的人聊天并获取有关 PDS 分发的重要更新。

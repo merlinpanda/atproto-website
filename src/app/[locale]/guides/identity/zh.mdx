@@ -1,0 +1,136 @@
+import {DescriptionList, Description} from '@/components/DescriptionList'
+
+export const metadata = {
+  title: '用户身份',
+  description:
+    'AT 协议如何处理用户身份。',
+}
+
+# 用户身份
+
+atproto 身份系统有许多要求：
+
+* **ID 规定：** 用户应能够创建跨服务稳定的全局 ID。这些 ID 不应改变，以确保指向其内容的链接稳定。
+* **公钥分发：** 分布式系统依靠密码学来证明数据的真实性。身份系统必须以强大的安全性发布其公钥。
+* **密钥轮换：** 用户必须能够在不破坏其身份的情况下轮换其密钥材料。
+* **服务发现：** 应用程序必须能够发现特定用户正在使用的服务。
+* **可用性：** 用户应该拥有人类可读且容易记住的名字。
+* **可移植性：** 身份应可在服务之间移植。更换提供商不应导致用户丢失其身份、社交图谱或内容。
+
+使用 atproto 身份系统为应用程序提供了端到端加密、签名用户数据、服务登录和一般互操作的工具。
+
+## 标识符
+
+我们使用两种相互关联的标识符形式：_handles_ 和 _DIDs_。Handles 是 DNS 名称，而 DID 是 [W3C 标准](https://www.w3.org/TR/did-core/)，具有多种实现，可提供安全稳定的 ID。AT 协议支持 DID PLC 和 DID Web 变体。
+
+以下都是有效的用户标识符：
+
+```
+alice.host.com
+at://alice.host.com
+did:plc:bv6ggog3tya2z3vxsub7hnal
+```
+
+它们之间的关系可以形象地理解为：
+
+```
+┌──────────────────┐                 ┌───────────────┐
+│ DNS name         ├──    决定   ──→ │ DID           │
+│ (alice.host.com) │                 │ (did:plc:...) │
+└──────────────────┘                 └─────┬─────────┘
+       ↑                                   │
+       │                                  决定
+       │                                   │
+       │                                   ↓
+       │                            ┌───────────────┐
+       └───────────    参考  ───────┤ DID Document  │
+                                    │ {"id":"..."}  │
+                                    └───────────────┘
+```
+
+DNS handle 是面向用户的标识符——它应该显示在用户界面中，并作为查找用户的一种方式进行推广。应用程序将 handle 解析为 DID，然后使用 DID 作为帐户的规范标识符。任何 DID 都可以快速解析为包含公钥和用户服务的 DID 文档。
+
+<DescriptionList>
+  <Description title="Handles">Handles 是 DNS 名称。它们使用 DNS TXT 记录或 HTTP 知名端点进行解析，并且必须通过 DID 文档中的匹配条目进行确认。详情可参考<a href="/specs/handle">Handle 规范</a>.</Description>
+  <Description title="DIDs">DIDs 是一个 <a href="https://www.w3.org/TR/did-core/">W3C 标准</a> 来提供稳定、安全的身份证。 它们被用作用户的稳定、规范 ID。有关它们在 AT 协议中的使用详情，请参见<a href="/specs/did">DID 规范</a>.</Description>
+  <Description title="DID 文档">
+    DID 文档是 DID 解析过程返回的标准化 JSON 对象。它们包含以下信息：
+    <ul>
+      <li>与 DID 关联的 handle。</li>
+      <li>签名密钥。</li>
+      <li>用户的 PDS 的 URL。</li>
+    </ul>
+  </Description>
+</DescriptionList>
+
+
+## DID 方法
+
+[DID 标准](https://www.w3.org/TR/did-core/) 描述了将 DID 发布和解析到 [DID 文档](https://www.w3.org/TR/did-core/#core-properties) 的不同“方法”的框架，而不是指定单一机制。各种现有[已注册](https://w3c.github.io/did-spec-registries/#did-methods)的方法，具有不同的功能和属性。我们为使用 atproto 制定了以下标准：
+
+- **强一致性：** 对于给定的 DID，解析查询在任何时候都应该只生成一个有效文档。（在某些网络中，这可能受概率交易最终性的影响。）
+- **高可用性：** 解析查询必须可靠地成功。
+- **在线 API：** 客户端必须能够通过标准 API 发布新的 DID 文档。
+- **安全：** 网络必须防范来自其运营商、中间人和其他用户的攻击。
+- **低成本：** 创建和更新 DID 文档的费用必须对服务和用户来说是可以承受的。
+- **密钥轮换：** 用户必须能够轮换密钥对而不会丢失其身份。
+- **去中心化治理：** 网络不应由单一利益相关者管理；它必须是一个开放的网络或一个提供商联盟。
+
+当我们启动该项目时，现有的 DID 方法均未满足所有这些标准。因此，我们选择同时支持现有的 [did-web](https://w3c-ccg.github.io/did-method-web/) 方法（该方法很简单）和我们创建的一种名为 [DID PLC](https://github.com/bluesky-social/did-method-plc) 的新方法。
+
+## Handle 解决方案
+
+atproto 中的 handles 是解析为 DID 的域名，而 DID 又解析为包含用户签名密钥和托管服务的 DID 文档。
+
+Handle 解析使用 DNS TXT 记录或 HTTPS 知名端点。详情请参阅 [Handle 规范](/specs/handle)。
+
+
+### 示例：托管服务
+
+考虑这样一种情况，托管服务正在使用 PLC，并将 handle 作为子域提供给用户：
+
+- handle： `alice.pds.com`
+- DID： `did:plc:12345`
+- 托管服务：`https://pds.com`
+
+首先，我们只知道 `alice.pds.com`，所以我们查找 DNS TXT 记录 `_atproto.alice.pds.com`。这告诉我们 DID：`did:plc:12345`。
+
+接下来，我们查询 PLC 目录中的 DID，以便我们可以了解托管服务的端点和用户的密钥材料。
+
+```typescript
+await didPlc.resolve('did:plc:12345') /* => {
+  id: 'did:plc:12345',
+  alsoKnownAs: `https://alice.pds.com`,
+  verificationMethod: [...],
+  service: [{serviceEndpoint: 'https://pds.com', ...}]
+}*/
+```
+
+我们现在可以与“https://pds.com”通信以访问Alice的数据。
+
+### 示例：自托管
+
+让我们考虑一个自托管场景。如果它使用`did:plc`，它看起来会像这样：
+
+- handle： `alice.com`
+- DID： `did:plc:12345`
+- 托管服务： `https://alice.com`
+
+但是，**如果自托管者确信他们将保留域名所有权**，他们可以使用“did:web”而不是“did:plc”：
+
+- handle： `alice.com`
+- DID： `did:web:alice.com`
+- 托管服务： `https://alice.com`
+
+我们可以用同样的方式解析 handle，解析 `_atproto.alice.com`，它返回 DID：`did:web:alice.com`
+
+然后我们解决：
+
+```typescript
+await didWeb.resolve('did:web:alice.com') /* => {
+  id: 'did:web:alice.com',
+  alsoKnownAs: `https://alice.com`,
+  verificationMethod: [...],
+  service: [{serviceEndpoint: 'https://alice.com', ...}]
+}*/
+```

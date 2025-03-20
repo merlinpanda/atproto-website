@@ -30,6 +30,28 @@ const lang_guides: Record<string, Guide[]> = {
       description: 'Frequently Asked Questions about the Atmosphere.',
     },
   ],
+  zh: [
+    {
+      href: '/guides/applications',
+      name: '快速开始',
+      description: '创建一个应用并开始构建',
+    },
+    {
+      href: '/guides/self-hosting',
+      name: '自托管',
+      description: '了解如何设置你自己的个人数据服务器。',
+    },
+    {
+      href: '/guides/glossary',
+      name: '术语表',
+      description: 'AT 协议中使用的所有术语的定义。',
+    },
+    {
+      href: '/guides/faq',
+      name: 'FAQ',
+      description: '有关 Atmosphere 的常见问题。',
+    },
+  ],
   pt: [
     {
       href: '/guides/applications',

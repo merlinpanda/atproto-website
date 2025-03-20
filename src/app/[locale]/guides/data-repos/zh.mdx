@@ -1,0 +1,54 @@
+import {DescriptionList, Description} from '@/components/DescriptionList'
+
+export const metadata = {
+  title: '个人数据存储库',
+  description:
+    'AT 协议 repo 结构指南。',
+}
+
+# 数据存储库
+
+数据存储库是单个用户发布的数据的集合。存储库是自我验证的数据结构，这意味着每次更新都经过签名，任何人都可以验证。
+
+它们在 [存储库规范](/specs/repository) 中有更深入的描述。
+
+## 数据布局
+
+存储库的内容以 [Merkle 搜索树 (MST)](https://hal.inria.fr/hal-02303490/document) 的形式呈现，将状态简化为单个根哈希。其布局如下图所示：
+
+```
+┌────────────────┐
+│     Commit     │  (Signed Root)
+└───────┬────────┘
+        ↓
+┌────────────────┐
+│   Tree Nodes   │
+└───────┬────────┘
+        ↓
+┌────────────────┐
+│     Record     │
+└────────────────┘
+```
+
+每个节点都是一个 [IPLD](https://ipld.io/) 对象 ([dag-cbor](https://ipld.io/docs/codecs/known/dag-cbor/))，由 [CID](https://github.com/multiformats/cid) 哈希引用。上图中的箭头表示 CID 引用。
+
+此布局反映在 [AT URI](/specs/at-uri-scheme) 中：
+
+```
+Root       | at://alice.com
+Collection | at://alice.com/app.bsky.feed.post
+Record     | at://alice.com/app.bsky.feed.post/1234
+```
+
+对数据存储库的“提交”只是对根节点 CID 的密钥对签名。存储库的每次变更都会产生一个新的提交节点。
+
+## 标识符类型
+
+个人数据存储库中使用多种类型的标识符。
+
+<DescriptionList>
+  <Description title="DIDs"><a href="https://w3c.github.io/did-core/">去中心化 IDs (DIDs)</a> 识别数据存储库。 它们被广泛用作用户 ID，但由于每个用户都有一个数据存储库，因此 DID 可以被视为对数据存储库的引用。DID 的格式因使用的“DID 方法”而异，但所有 DID 最终都会解析为密钥对和服务提供商列表。此密钥对可以签署对数据存储库的提交。</Description>
+  <Description title="CIDs"><a href="https://github.com/multiformats/cid">内容 IDs (CIDs)</a> 使用指纹哈希识别内容。 它们在整个存储库中用于引用其中的对象（节点）。当存储库中的节点发生变化时，其 CID 也会发生变化。引用该节点的父节点必须更新其引用，这反过来也会更改父节点的 CID。这会一直链接到提交节点，然后对其进行签名。</Description>
+  <Description title="NSIDs"><a href="/specs/nsid">命名空间标识符 (NSIDs)</a> 识别存储库中记录组的 Lexicon 类型。</Description>
+  <Description title="rkey"><a href="/specs/record-key">Record Keys</a> ("rkeys") 识别给定存储库中集合内的单个记录。格式由Lexicon集合指定，有些集合只有一个带有键（如“self”）的记录，而其他集合则有许多记录，键使用称为时间戳标识符 (TID) 的 base32 编码时间戳。</Description>
+</DescriptionList>

@@ -1,0 +1,111 @@
+import { Guides } from '@/components/Guides'
+import { Specs } from '@/components/Specs'
+import { HeroPattern } from '@/components/HeroPattern'
+import { Firehose } from '@/components/Firehose'
+import { CodeCard } from '@/components/CodeCard'
+import { ImageCard } from '@/components/ImageCard'
+import { ArticleSummary, ArticleSummarySmall } from '@/components/ArticleSummary'
+import { UserIcon } from '@/components/icons/UserIcon'
+import WebWithoutWallsPng from '@/images/media/web-without-walls.png'
+import DotMediaInterviewPng from '@/images/media/dotmedia-interview.png'
+import WhitepaperPng from '@/images/media/whitepaper.png'
+import HowDoesBlueskyWorkBlogpostPng from '@/images/media/how-does-bsky-work-blogpost.png'
+
+export const metadata = {
+  title: 'AT协议',
+  description:
+    'AT协议是一个开放、去中心化的高性能社交应用构建网络。',
+}
+
+export const sections = []
+
+<HeroPattern />
+
+# 欢迎来到AT协议生态圈
+
+AT协议是一个用于构建社交应用的开放去中心化网络。{{ className: 'lead' }}
+
+<div className="not-prose mb-16 mt-6 flex gap-3">
+  <Button href="/guides/applications" arrow="right">
+    <>快速入门</>
+  </Button>
+  <Button href="/sdks" variant="outline">
+    <>探索SDK</>
+  </Button>
+</div>
+
+{/* TODO <Row>
+  <Col>
+      <Firehose />
+  </Col>
+  <Col>
+    <CodeCard description="Single Sign-On in 5 minutes." href="/todo" icon={UserIcon}>
+      ```js {{containerClassName: 'rounded-t-none !my-0 border-t border-zinc-900/7.5 dark:border-white/10 !ring-0'}}
+      import { BrowserOAuthClient } from '@atproto/oauth-client-browser'
+
+      const client = new BrowserOAuthClient()
+      await client.signIn('my.handle.com', {
+        state: 'some value needed later',
+        prompt: 'none', // Attempt to sign in without user interaction (SSO)
+        ui_locales: 'fr-CA fr en', // Only supported by some OAuth servers (requires OpenID Connect support + i18n support)
+        signal: new AbortController().signal, // Optional, allows to cancel the sign in (and destroy the pending authorization, for better security)
+      })
+      ```
+    </CodeCard>
+  </Col>
+</Row> */}
+
+<Guides lang="zh" />
+
+<Specs lang="zh" />
+
+{/* TODO
+---
+
+## A Web of Data {{className: 'text-2xl mt-2 scroll-mt-32'}}
+
+The Atmosphere is a web of interconnected data. It is the porous membrane through which posts, profiles, and comments flow.  It is a network of databases working in conjunction to provide one global database - a tool for people to communicate with each other through data.
+
+The purpose of the Atmosphere is to run social applications at scale. It's designed for real-world applications with hundreds of millions of users. The Bluesky app has 6mm registered users and 500k DAU, and runs at roughly the same cost-efficiency as traditional applications.
+
+The vision and mission of the Atmosphere is to make it easy for people to build. Whether you're a weekend hacker or building a startup, you should have access to a social network to build upon. The joy of social programming should be available to everyone.
+
+<Button href="/quickstart" arrow="right">
+  <>Keep reading</>
+</Button> */}
+
+## 了解更多
+
+<div className="xl:grid grid-cols-2 gap-12 xl:max-w-none border-t border-zinc-900/5 dark:border-zinc-700 pt-10 mt-4">
+
+<ArticleSummary tag="指南" title="术语表" href="/guides/glossary" >
+什么是PDS？AppView？DID？如果你对这些新概念感到困惑，请查阅本术语表。
+</ArticleSummary>
+
+<ArticleSummary tag="指南" title="AT协议快速开发指南" href="/guides/applications" >
+在本指南中，我们将构建一个简单的多用户应用，用表情符号发布当前"状态"。
+</ArticleSummary>
+
+<ArticleSummary tag="文章" title="ATProto分布式系统工程师指南" href="/articles/atproto-for-distsys-engineers" >
+本文从分布式后端工程的角度探讨AT Proto技术架构。
+</ArticleSummary>
+
+<ArticleSummary tag="指南" title="什么是Lexicon？如何用它创建模式？" href="/guides/lexicon" >
+本指南将介绍Lexicon并指导你开始构建自己的数据模式。
+</ArticleSummary>
+
+</div>
+
+<div className="flex flex-col xl:grid grid-cols-3 gap-12 xl:max-w-none border-t border-zinc-900/5 dark:border-zinc-700 pt-10 mt-4">
+
+<ImageCard image={WebWithoutWallsPng} href="https://www.youtube.com/watch?v=F1sJW6nTP6E" title="无界网络 - React Universe 2024演讲" tag="技术演讲" description="Dan Abramov在React Universe Conf 2024大会上介绍的AT协议" />
+
+<ImageCard image={DotMediaInterviewPng} href="https://flipboard.video/w/ophhJTECuL7fcBNbUitV3q" title="与Bluesky Jay Graber对话：让身份回归核心" tag="访谈" description="Jay Graber与Flipboard CEO Mike McCue关于构建类Web社交的对话" />
+
+<ImageCard image={WhitepaperPng} href="https://arxiv.org/abs/2402.03239" title="Bluesky与AT协议：可用的去中心化社交媒体" tag="白皮书" description="由Martin Kleppman和AT协议团队撰写的技术白皮书" />
+
+</div>
+
+## 寻找Bluesky API文档？
+
+请访问[docs.bsky.app](https://docs.bsky.app)获取Bluesky专属文档。

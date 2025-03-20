@@ -233,11 +233,11 @@ export const navigation: Array<NavGroup> = [
   {
     title: 'Home',
     links: [
-      { title: 'Introduction', href: '/' },
+      { title: '简介', href: '/' },
       // { title: 'Why ATProto?', href: '/articles/why-atproto' }, TODO
       // { title: 'Explore the network', href: '/explorer' }, TODO
       { title: 'SDKs', href: '/sdks' },
-      { title: 'Glossary', href: '/guides/glossary' },
+      { title: '术语表', href: '/guides/glossary' },
       { title: 'FAQ', href: '/guides/faq' },
     ],
   },
@@ -246,17 +246,17 @@ export const navigation: Array<NavGroup> = [
   //   links: [{ title: 'Tutorial', href: '/guides/oauth-tutorial' }],
   // },
   {
-    title: 'Building apps',
-    links: [{ title: 'Quick start', href: '/guides/applications' }],
+    title: '构建应用',
+    links: [{ title: '快速开始', href: '/guides/applications' }],
   },
   {
-    title: 'Guides',
+    title: '指南',
     links: [
-      { title: 'Overview', href: '/guides/overview' },
-      { title: 'Identity', href: '/guides/identity' },
-      { title: 'Data Repositories', href: '/guides/data-repos' },
+      { title: '总览', href: '/guides/overview' },
+      { title: '身份标识', href: '/guides/identity' },
+      { title: '数据存储库', href: '/guides/data-repos' },
       { title: 'Schemas & Lexicon', href: '/guides/lexicon' },
-      { title: 'PDS Self-Hosting', href: '/guides/self-hosting' },
+      { title: 'PDS 自托管', href: '/guides/self-hosting' },
     ],
   },
   {
