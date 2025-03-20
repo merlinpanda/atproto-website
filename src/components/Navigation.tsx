@@ -263,9 +263,9 @@ export const navigation: Array<NavGroup> = [
     title: 'Specs',
     links: [
       { title: 'AT Protocol', href: '/specs/atp' },
-      { title: 'Data Model', href: '/specs/data-model' },
+      { title: '数据模型', href: '/specs/data-model' },
       { title: 'Lexicon', href: '/specs/lexicon' },
-      { title: 'Cryptography', href: '/specs/cryptography' },
+      { title: '密码学', href: '/specs/cryptography' },
       { title: 'Accounts', href: '/specs/account' },
       { title: 'Repository', href: '/specs/repository' },
       { title: 'Blobs', href: '/specs/blob' },

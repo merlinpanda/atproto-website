@@ -10,25 +10,25 @@ atproto 中的记录和消息以一致的方式存储、传输、编码和验证
 
 当数据需要进行身份验证（签名）、引用（通过内容哈希链接）或有效存储时，它会以简洁的二进制对象表示 (CBOR) 进行编码。CBOR 是一种大致基于 JSON 的 IETF 标准。atproto 数据模型中使用的 CBOR 的特定规范化子集称为 **DAG-CBOR**。所有 DAG-CBOR 数据都是有效的 CBOR，可以使用任何 CBOR 库读取。使用正确的规范化规则编写或严格验证 DAG-CBOR 有时需要额外的配置或特殊的 CBOR 实现。{{ className: 'lead' }}
 
-The schema definition language for atproto is [Lexicon](/specs/lexicon). Other lower-level data structures, like [repository](/specs/repository) internals, are not specified with Lexicons, but use the same data model and encodings.
+atproto 的架构定义语言是 [Lexicon](/specs/lexicon)。其他较低级别的数据结构（如 [repository](/specs/repository) 内部结构）未使用 Lexicons 指定，但使用相同的数据模型和编码。
 
-Distinct pieces of data are called **nodes,** and when encoded in binary (DAG-CBOR) result in a **block.** A node may have internal nested structure (maps or lists). Nodes may reference each other by string URLs or URIs, just like with regular JSON on the web. They can also reference each other strongly by hash, referred a **link.** A set of linked nodes can form higher-level data structures like [Merkle Trees](https://en.wikipedia.org/wiki/Merkle_tree) or [Directed Acyclical Graphs (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph). Links can also refer to arbitrary binary data (blobs).
+不同的数据片段称为**节点**，以二进制 (DAG-CBOR) 编码后会生成**区块**。节点可能具有内部嵌套结构（映射或列表）。节点可以通过字符串 URL 或 URI 相互引用，就像网络上的常规 JSON 一样。它们还可以通过哈希强引用彼此，称为**链接**。一组链接节点可以形成更高级的数据结构，如 [Merkle 树](https://en.wikipedia.org/wiki/Merkle_tree) 或 [有向无环图 (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph)。链接还可以引用任意二进制数据 (blob)。
 
-Unlike URLs, hash references (links) do not encode a specific network location where the content can be found. The location and access mechanism must be inferred by protocol-level context. Hash references do have the property of being "self-certifying", meaning that returned data can be verified against the link hash. This makes it possible to redistribute content and trust copies even if coming from an untrusted party.
+与 URL 不同，哈希引用（链接）不会对可以找到内容的特定网络位置进行编码。位置和访问机制必须通过协议级上下文推断。哈希引用确实具有“自认证”的属性，这意味着可以根据链接哈希验证返回的数据。这使得重新分发内容和信任副本成为可能，即使来自不受信任的一方也是如此。
 
-Links are encoded as [Content Identifiers](https://docs.ipfs.tech/concepts/content-addressing/#identifier-formats) (CIDs), which have both binary and string representations. CIDs include a metadata code which indicates whether it links to a node (DAG-CBOR) or arbitrary binary data. Some additional constraints on the use of CIDs in atproto are described below.
+链接被编码为 [内容标识符](https://docs.ipfs.tech/concepts/content-addressing/#identifier-formats) (CID)，具有二进制和字符串表示形式。CID 包含元数据代码，指示它是否链接到节点 (DAG-CBOR) 或任意二进制数据。下面介绍了在 atproto 中使用 CID 的一些其他限制。
 
-In atproto, object nodes often include a string field `$type` that specifies their Lexicon schema. Data is mostly self-describing and can be processed in schema-agnostic ways (including decoding and re-encoding), but can not be fully validated without the schema on-hand or known ahead of time.
+在 atproto 中，对象节点通常包含一个字符串字段 `$type`，用于指定其Lexicon架构。数据大多是自描述的，可以以架构无关的方式进行处理（包括解码和重新编码），但如果没有现成的架构或事先不知道架构，则无法完全验证。
 
-## Relationship With IPLD
+## 与 IPLD 的关系
 
-The data model is inspired by [Interplanetary Linked Data (IPLD)](https://ipld.io/docs/data-model/), a specification for hash-linked data structures from the IPFS ecosystem.
+该数据模型的灵感来自于 [星际链接数据 (IPLD)](https://ipld.io/docs/data-model/)，它是 IPFS 生态系统中哈希链接数据结构的规范。
 
-IPLD specifies a normalized JSON encoding called **DAG-JSON,** but atproto uses a different set of conventions when encoding JSON data. The atproto JSON encoding is not designed to be byte-determinisitic, and the CBOR representation is used when data needs to be cryptographically signed or hashed.
+IPLD 指定了一种称为 **DAG-JSON** 的规范化 JSON 编码，但 atproto 在编码 JSON 数据时使用了一组不同的约定。atproto JSON 编码并非设计为字节确定性的，当数据需要加密签名或散列时，使用 CBOR 表示。
 
-The IPLD Schema language is not used.
+不使用 IPLD Schema 语言。
 
-## Data Types
+## 数据类型
 
 | Lexicon Type  | IPLD Type | JSON                 | CBOR                    | Note                    |
 | ---           | ---       | ---                  | ---                     | ---                     |
@@ -43,63 +43,63 @@ The IPLD Schema language is not used.
 | `object`      | map       | Object               | Map (major 5)           | keys are always strings |
 | `blob`        | -         | `$type: blob` Object | `$type: blob` Map       |                         |
 
-`blob` is for references to files, such as images. It includes basic metadata like MIME Type and size (in bytes).
+`blob` 用于引用文件，例如图像。它包括基本元数据，如 MIME 类型和大小（以字节为单位）。
 
-As a best practice to ensure Javascript compatibility with default types, `integer` should be limited to 53 bits of precision. Note that JSON numbers can have an arbitrary number of digits, but `integer` is limited to 64 bits even ignoring Javascript.
+作为确保 JavaScript 与默认类型兼容的最佳实践，“整数”的精度应限制为 53 位。请注意，JSON 数字可以有任意数量的数字，但即使忽略 JavaScript，“整数”也限制为 64 位。
 
-Lexicons can include additional validation constraints on individual fields. For example, integers can have maximum and minimum values. Data can not be validated against these additional constraints without access to the relevant Lexicon schema, but there is a concept of validating free-form JSON or CBOR against the atproto data model in an abstract sense. For example, a JSON object with a nested `$bytes` object with a boolean instead of a base64-encoded string might be valid JSON, but can never be valid under the atproto data model.
+Lexicons可以包含对各个字段的额外验证约束。例如，整数可以具有最大值和最小值。如果不访问相关的Lexicon架构，则无法根据这些额外约束验证数据，但存在一个抽象意义上的根据 atproto 数据模型验证自由格式 JSON 或 CBOR 的概念。例如，带有嵌套 `$bytes` 对象的 JSON 对象（该对象带有布尔值而不是 base64 编码的字符串）可能是有效的 JSON，但在 atproto 数据模型下永远不会有效。
 
-Lexicon string fields can have additional `format` type information associated with them for validation, but as with other validation constraints this information is not available without the Lexicon itself.
+Lexicon字符串字段可以具有与其相关联的其他 `format` 类型信息以进行验证，但与其他验证约束一样，如果没有Lexicon本身，则无法获得这些信息。
 
-Data field names starting with `$` are reserved for use by the data model or protocol itself, in both JSON and CBOR representations. For example, the `$bytes` key name (used in CBOR and JSON), the `$link` key (used for JSON CID Links), or `$type` (used to indicate record type). Implementations should ignore unknown `$` fields (to allow protocol evolution). Applications, extensions, and integrations should not use or unilaterally define new `$` fields, to prevent conflicts as the protocol evolves.
+以 `$` 开头的数据字段名称保留给数据模型或协议本身使用，无论是 JSON 还是 CBOR 表示形式。例如，`$bytes` 键名（用于 CBOR 和 JSON）、`$link` 键（用于 JSON CID 链接）或 `$type`（用于指示记录类型）。实现应忽略未知的 `$` 字段（以允许协议演变）。应用程序、扩展和集成不应使用或单方面定义新的 `$` 字段，以防止在协议演变过程中发生冲突。
 
 ### Nullable and False-y
 
-In the atproto data model there is a semantic difference between explicitly setting an map field to `null` and not including the field at all. Both JSON and CBOR have the same distinction.
+在 atproto 数据模型中，明确将映射字段设置为“null”与根本不包含该字段之间存在语义差异。JSON 和 CBOR 都有相同的区别。
 
-Null or missing fields are also distinct from "false-y" value like `false` (for booleans), `0` (for integers), empty lists, or empty objects.
+空字段或缺失字段也不同于“false-y”值，如“false”（对于布尔值）、“0”（对于整数）、空列表或空对象。
 
-### Why No Floats?
+### 为什么没有浮点数？
 
-CBOR and JSON both natively support floating point numbers, so why does atproto go out of the way to disallow them?
+CBOR 和 JSON 都原生支持浮点数，那么为什么 atproto 要特意禁止它们呢？
 
-The IPLD specification describes [some of the complexities and sharp edges](https://ipld.io/docs/data-model/kinds/#float-kind) when working with floats in a content-addressable world. In short, de-serializing in to machine-native format, then later re-encoding, is not always consistent. This is definitely true for special values and corner-cases, but can even be true with "normal" float values on less-common architectures.
+IPLD 规范描述了在内容可寻址的世界中处理浮点数时的[一些复杂性和尖锐边缘]((https://ipld.io/docs/data-model/kinds/#float-kind))。简而言之，反序列化为机器原生格式，然后重新编码，并不总是一致的。对于特殊值和极端情况来说，这绝对是正确的，但对于不太常见的架构上的“正常”浮点值来说，这甚至可能是正确的。
 
-It may be possible to come up with rules to ensure reliable round-trip encoding of floats in the future, but for now we disallow floats.
+未来可能会制定规则来确保浮点数的可靠往返编码，但目前我们不允许使用浮点数。
 
-If you have a use-case where integers can not be substituted for floats, we recommend encoding the floats as strings or even bytes. This provides a safe default round-trip representation.
+如果您有无法用整数替代浮点数的使用场景，我们建议将浮点数编码为字符串甚至字节。这提供了一个安全的默认往返表示方式。
 
-## `blob` Type
+## `blob` 类型
 
-References to "blobs" (arbitrary files) have a consistent format in atproto, and can be detected and processed without access to any specific Lexicon. That is, it is possible to parse nodes and extract any blob references without knowing the schema.
+对“blob”（任意文件）的引用在 atproto 中具有一致的格式，无需访问任何特定Lexicon即可检测和处理。也就是说，无需了解架构即可解析节点并提取任何 blob 引用。
 
-Blob nodes are maps with following fields:
+Blob 节点是具有以下字段的映射：
 
-- `$type` (string, required): fixed value `blob`. Note that this is not a valid NSID.
-- `ref` (link, required): CID reference to blob, with multicodec type `raw`. In JSON, encoded as a `$link` object as usual
-- `mimeType` (string, required, not empty): content type of blob. `application/octet-stream` if not known
-- `size` (integer, required, positive, non-zero): length of blob in bytes
+- `$type` (string，必需)：固定值 `blob`。请注意，这不是有效的 NSID。
+- `ref` (link，必需)：对 blob 的 CID 引用，具有多编解码器类型 `raw`。在 JSON 中，像往常一样编码为 `$link` 对象
+- `mimeType` (字符串，必需，非空)：blob 的内容类型。如果未知，则为 `application/octet-stream`
+- `size` (整数，必需，正数，非零)：blob 的长度（以字节为单位）
 
-There is also a deprecated legacy blob format, with some records in the wild still containing blob references in this format:
+还有一种已弃用的旧式 Blob 格式，但一些现有的记录仍然包含这种格式的 Blob 引用：
 
-- `cid` (string, required): a CID in *string* format, not *link* format
-- `mimeType` (string, required, not empty): same as `mimeType` above
+- `cid` (字符串，必需)：*字符串*格式的 CID，而非 *link* 格式
+- `mimeType` (字符串，必需，非空)：与上面的 `mimeType` 相同
 
-Note that the legacy format has no `$type` and can only be parsed for known Lexicons. Implementations should not throw errors when encountering the old format, but should never write them, and it is acceptable to only partially support them.
+请注意，旧格式没有 `$type`，只能解析已知的Lexicons。实现在遇到旧格式时不应抛出错误，但永远不应写入它们，并且仅部分支持它们是可以接受的。
 
-## JSON Representation
+## JSON 表示
 
-atproto uses its own conventions for JSON, instead of using DAG-JSON directly. The main motivation was to have more idiomatic and human-readable representations for `link` and `bytes` in HTTP APIs. The DAG-JSON specification itself mentions that it is primarily oriented toward debugging and development environments, and we found that the use of `/` as a field key was confusing to developers.
+atproto 使用自己的 JSON 约定，而不是直接使用 DAG-JSON。主要动机是让 HTTP API 中的`link`和 `bytes`具有更符合习惯且更易于阅读的表示形式。DAG-JSON 规范本身提到它主要面向调试和开发环境，我们发现使用“/”作为字段键会让开发人员感到困惑。
 
-Normalizations like key sorting are also not required or enforced when using JSON in atproto: only DAG-CBOR is used as a byte-reproducible representation.
+在 atproto 中使用 JSON 时，也不需要或强制进行诸如键排序之类的规范化：仅使用 DAG-CBOR 作为字节可重现表示。
 
-The encoding for most of the core and compound types is straight forward, with only `link` and `bytes` needing special treatment.
+大多数核心类型和复合类型的编码都很简单，只有 `link`和 `bytes` 需要特殊处理。
 
 ### `link`
 
-The JSON encoding for link is an object with the single key `$link` and the string-encoded CID as a value.
+link 的 JSON 编码是一个对象，具有单个键`$link`和字符串编码的 CID 作为值。
 
-For example, a node with a single field `"exampleLink"` with type `link` would encode in JSON like:
+例如，具有单个字段`exampleLink`且类型为`link`的节点将以 JSON 格式编码如下：
 
 ```
 {
@@ -110,13 +110,13 @@ For example, a node with a single field `"exampleLink"` with type `link` would e
 
 ```
 
-For comparison, this is very similar to the DAG-JSON encoding, but substitutes `$link` as the key name instead of `/` (single-character, forward slash).
+为了进行比较，这与 DAG-JSON 编码非常相似，但用`$link`代替 `/`（单字符，正斜杠）作为键名。
 
 ### `bytes`
 
-The JSON encoding for bytes is an object with the single key `$bytes` and string value with the base64-encoded bytes. The base64 scheme is the one specified in [RFC-4648, section 4](https://datatracker.ietf.org/doc/html/rfc4648#section-4), frequently referred to as simple "base64". This scheme is not URL-safe, and `=` padding is optional.
+`bytes` 的 JSON 编码是一个对象，具有单个键 `$bytes` 和带有 base64 编码字节的字符串值。base64 方案是 [RFC-4648，第 4 节](https://datatracker.ietf.org/doc/html/rfc4648#section-4) 中指定的方案，通常称为简单的`base64`。此方案不是 URL 安全的，并且 `=` 填充是可选的。
 
-For example, a node with a single field `"exampleBytes"` with type `bytes` would be represented in JSON like:
+例如，具有单个字段`"exampleBytes"`且类型为`bytes`的节点将以 JSON 表示如下：
 
 ```
 {
@@ -127,39 +127,128 @@ For example, a node with a single field `"exampleBytes"` with type `bytes` would
 
 ```
 
-For comparison, the DAG-JSON encoding has two nested objects, with outer key `/` (single-character, forward slash), inner key `bytes`, and the same base64 encoding.
+为了进行比较，DAG-JSON 编码有两个嵌套对象，外键为“/”（单字符，正斜杠），内键为“bytes”，并采用相同的 base64 编码。
 
-## Link and CID Formats
+## 链接和 CID 格式
 
-The [IPFS CID specification](https://github.com/multiformats/cid) is very flexible. It supports a wide variety of hash types, a field indicating the "type" of content being linked to, and various string encoding options. These features are valuable to allow evolution over time, but to maximize interoperability among implementations, only a specific "blessed" set of CID types are allowed.
+[IPFS CID 规范](https://github.com/multiformats/cid) 非常灵活。它支持多种哈希类型、指示所链接内容"type"的字段以及各种字符串编码选项。这些功能对于允许随着时间的推移而发展非常有用，但为了最大限度地提高实现之间的互操作性，只允许使用一组特定的"blessed"的 CID 类型。
 
-The blessed formats for CIDs in atproto are:
+atproto 中 CID 的"blessed"格式为：
 
 - CIDv1
-- multibase: binary serialization within DAG-CBOR `link` fields, and `base32` for string encoding
-- multicodec: `dag-cbor` (0x71) for links to data objects, and `raw` (0x55) for links to blobs
-- multihash: `sha-256` with 256 bits (0x12) is preferred
+- multibase: DAG-CBOR `link` 字段内的二进制序列化，以及用于字符串编码的 `base32`
+- multicodec: `dag-cbor` (0x71) 用于数据对象的链接，`raw` (0x55) 用于 blob 的链接
+- multihash: 最好使用 256 位 (0x12) 的 `sha-256`
 
-The use of SHA-256 is a stable requirement in some contexts, such as the repository MST nodes. In other contexts, like referencing media blobs, there will likely be a set of "blessed" hash types which evolve over time. A balance needs to be struck between protocol flexibility on the one hand (to adopt improved hashes and remove weak ones), and ensuring broad and consistent interoperability throughout an ecosystem of protocol implementations.
+在某些情况下，例如存储库 MST 节点，使用 SHA-256 是一项稳定的要求。在其他情况下，例如引用媒体 blob，可能会有一组“blessed”哈希类型，这些哈希类型会随着时间的推移而演变。需要在协议灵活性（采用改进的哈希并删除弱哈希）与确保整个协议实现生态系统的广泛和一致的互操作性之间取得平衡。
 
-There are several ways to include a CID hash reference in an atproto object:
+有几种方法可以在 atproto 对象中包含 CID 哈希引用：
 
-- `link` field type (Lexicon type `cid-link`). In DAG-CBOR encodes as a binary CID (multibase type 0x00) in a bytestring with CBOR tag 42. In JSON, encodes as `$link` object (see above)
-- `string` field type, with Lexicon string format `cid`. In DAG-CBOR and JSON, encodes as a simple string
-- `string` field type, with Lexicon string format `uri`, with URI scheme `ipld://`
+- `link` 字段类型 (Lexicon type `cid-link`). 在 DAG-CBOR 中，使用 CBOR 标签 42 编码为字节串中的二进制 CID（多基类型 0x00）。在 JSON 中，编码为 `$link` 对象（参见上文）
+- `string` 字段类型, 使用Lexicon字符串格式“cid”。在 DAG-CBOR 和 JSON 中，编码为简单字符串
+- `string` 字段类型, 使用Lexicon字符串格式 `uri`，使用 URI 方案 `ipld://`
 
-## Usage and Implementation Guidelines
+## 使用和实施指南
 
-When working with the deprecated/legacy "blob" format, it is recommend to store in the same internal representation as regular "blob" references, but to set the `size` to zero or a negative value. This field should be checked when re-serializing to ensure proper round-trip behavior and avoid ever encoding a zero or negative `size` value in the normal object format.
+使用弃用/旧版“blob”格式时，建议使用与常规“blob”引用相同的内部表示形式进行存储，但将“size”设置为零或负值。重新序列化时应检查此字段以确保正确的往返行为，并避免以正常对象格式编码零或负“size”值。
 
-## Security and Privacy Considerations
+## 安全和隐私注意事项
 
-There are a number of resource-consumption attacks possible when parsing untrusted CBOR content. It is recommended to use a library that automatically protects against huge allocations, deep nesting, invalid references, etc. This is particularly important for libraries implemented in languages without strong memory safety, such as C and C++. Note that high-level languages frequently wrap parsers written in lower-level languages.
+解析不受信任的 CBOR 内容时，可能会发生多种资源消耗攻击。建议使用可自动防止大量分配、深度嵌套、无效引用等的库。这对于使用内存安全性不强的语言（如 C 和 C++）实现的库尤其重要。请注意，高级语言经常包装用低级语言编写的解析器。
 
-## Possible Future Changes
+## 未来可能的变化
 
-Floats may be supported in one form or another.
+Floats 可以采用一种或另一种形式得到支撑。
 
-The legacy "blob" format may be entirely removed, if all known records and repositories can be rewritten.
+如果所有已知的记录和存储库都可以重写，那么传统的“blob”格式可能会被完全删除。
 
-Additional hash types are likely to be included in the set of "blessed" CID configurations.
+其他哈希类型很可能也会被纳入“blessed” CID 配置集合中。
+
+------------------
+
+
+我将以实际应用场景为切入点，用通俗易懂的方式解读这些数据类型的作用：
+
+### 数据类型核心作用：构建去中心化社交网络的基础积木
+就像乐高积木需要标准化接口才能组合，AT协议通过这些数据类型实现：
+1. **跨平台兼容** - 确保不同客户端（iOS/网页）都能正确解析数据
+2. **内容可验证** - 哈希链接（CID）保证数据不被篡改
+3. **存储优化** - 二进制编码节省存储空间
+4. **协议扩展性** - 通过组合类型支持未来新功能
+
+### 关键数据类型实战解读（以社交功能为例）
+```typescript
+// 用户资料记录示例（对应record类型）
+{
+  $type: "app.bsky.actor.profile", // 类型标识
+  displayName: "技术爱好者小明",    // string类型
+  description: "AT协议研究者",      // string类型
+  followersCount: 284,            // integer类型
+  avatar: {                        // blob类型（头像文件）
+    $type: "blob",
+    ref: { $link: "bafy..." },     // cid-link类型
+    mimeType: "image/jpeg",
+    size: 102400
+  },
+  labels: ["开发者", "早期用户"],    // array类型
+  isVerified: true                // boolean类型
+}
+
+// 推文互动示例（对应union类型）
+{
+  $type: "app.bsky.feed.like",    // 点赞类型
+  subject: { $link: "bafy..." },  // 引用推文CID
+  createdAt: "2024-03-15T09:30:00Z"
+}
+
+{
+  $type: "app.bsky.feed.repost",  // 转发类型
+  subject: { $link: "bafy..." },
+  reason: "优质技术分析"           // 同一位置支持不同类型
+}
+```
+
+### 生活化比喻理解复杂类型
+1. **CID链接** ≈ 快递单号
+   - 单号唯一标识包裹（数据）
+   - 通过单号可在任意快递点取件（分布式存储）
+   - 包裹内容哈希验证防伪（内容不可篡改）
+
+2. **blob类型** ≈ 文件附件
+   - 图片/视频等二进制文件专用容器
+   - 包含MIME类型说明（像文件扩展名）
+   - 大小限制防止资源滥用
+
+3. **union类型** ≈ 多功能工具箱
+   - 同一位置支持多种数据类型
+   - 类似微信消息可包含文本/图片/定位
+   - 实现动态数据结构的灵活性
+
+### 开发者必备知识
+1. **类型选择原则**：
+   - 数值类用integer（禁用float防精度问题）
+   - 大文本用string（自带长度校验）
+   - 文件传输用blob（带MIME类型校验）
+   - 跨记录引用用cid-link（内容寻址）
+
+2. **实际开发注意**：
+   ```javascript
+   // 错误示例：直接使用浮点数
+   { temperature: 36.6 } // 应转换为整数（如366表示36.6℃）
+
+   // 正确做法：遵循数据模型规范
+   {
+     $type: "app.example.healthData",
+     temperature: 366,        // integer类型（存储为百分位值）
+     unit: "celsius×10",     // 通过单位说明实现精度
+     measurementTime: "2024-03-15T12:00:00Z"
+   }
+   ```
+
+### 为什么需要严格规范？
+1. **数据一致性**：保证全球节点数据解析一致
+2. **存储优化**：二进制编码比JSON节省40%+空间
+3. **安全验证**：哈希链接实现内容自验证
+4. **未来兼容**：通过union等类型实现协议可扩展
+
+这些数据类型规范就像交通规则，虽然初学时有学习成本，但确保了整个AT协议网络中的数据能像车辆一样安全、有序地流通。如果需要了解某个具体类型的实现细节，我们可以针对性地深入探讨。
