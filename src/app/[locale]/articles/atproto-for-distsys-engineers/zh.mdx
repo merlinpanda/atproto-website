@@ -79,7 +79,7 @@ AT Protocol 是 [Bluesky](https://bsky.app) 为开放社交网络开发的技术
 
 现在我们注意到，保持视图服务器与 NoSQL 集群中的规范数据同步非常棘手。有时我们的视图服务器会崩溃并错过更新。我们需要确保我们的视图始终保持最新状态。
 
-为了解决这个问题，我们引入了事件日志（例如 [Kafka](https://kafka.apache.org/)）。该日志记录并广播所有更改到 NoSQL 集群。我们的视图服务器会监听并重放该日志，以确保它们不会错过任何更新，即使它们需要重新启动。
+为了解决这个问题，我们引入了事件日志（例如 [Kafka](https://kafka.apache.org/)）。该日志记录并广播所有的更改到 NoSQL 集群。我们的视图服务器会监听并重放该日志，以确保它们不会错过任何更新，即使它们需要重新启动。
 
 <Container>
   <Image src={image6} alt="" className="w-full dark:invert" />
@@ -145,7 +145,7 @@ AT 协议的目标是互连应用程序，以便它们的后端共享状态，�
   <Image src={image13} alt="" className="w-full dark:invert" />
 </Container>
 
-请记住：数据repo服务基本上仍然是 NoSQL 存储，只是它们现在以一种非常特殊的方式组织起来：
+请记住：数据存储服务基本上仍然是 NoSQL 存储，只是它们现在以一种非常特殊的方式组织起来：
 
 1. 每个用户都有一个数据存储库。
 2. 每个存储库都有集合。
@@ -193,7 +193,7 @@ AT 协议的目标是互连应用程序，以便它们的后端共享状态，�
   <Image src={image19} alt="" className="w-full dark:invert max-w-xl mx-auto" />
 </Container>
 
-这会将文档提交到 repo，然后触发写入正在监听 repo 的事件日志的操作。
+这会将文档提交到 存储库，然后触发写入正在监听 存储库 的事件日志的操作。
 
 <Container>
   <Image src={image20} alt="" className="w-full dark:invert" />

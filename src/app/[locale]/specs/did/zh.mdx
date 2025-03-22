@@ -1,0 +1,175 @@
+export const metadata = {
+  title: 'DID',
+  description:
+    '持久的去中心化标识符（在 atproto 中使用）',
+}
+
+# AT Protocol DIDs
+
+AT 协议使用 [去中心化标识符](https://en.wikipedia.org/wiki/Decentralized_identifier) (DID) 作为持久的长期帐户标识符。DID 是 W3C 标准，有许多标准化和建议的 DID 方法实现。{{ className: 'lead' }}
+
+## Blessed DID Methods
+
+目前，atproto 支持两种 DID 方法：
+
+- `did:web`, 这是基于 HTTPS（和 DNS）的 W3C 标准。标识符部分是主机名。atproto 支持此方法，以提供 `did:plc` 的独立替代方案。该方法本质上与所使用的域名相关，并且不提供迁移或从域名控制权丢失中恢复的机制。在 atproto 上下文中，仅支持主机名级 `did:web` DID：不支持基于路径的 DID。适用于 handle 的顶级域名的相同限制（例如，没有 `.arpa`）也适用于 `did:web` 域。允许使用特殊的 `localhost` 主机名，但仅限于测试和开发环境。端口号（以十六进制编码分隔的冒号）仅允许用于 `localhost`，并且仅在测试和开发中使用。
+- `did:plc`, 这是 Bluesky 开发的一种新颖的 DID 方法。有关详细信息，请参阅 [did-method-plc](https://github.com/did-method-plc/did-method-plc) GitHub 存储库。
+
+将来可能会支持少量其他方法。即使存在通用解析器软件，我们也不会支持所有甚至许多 DID 方法。
+
+
+## AT 协议 DID 标识符语法
+
+Lexicon 字符串格式类型: `did`
+
+无论使用何种方法，DID 核心规范都会对 DID 标识符语法进行约束。这些语法约束的摘要可用于在 atproto 中通用地验证 DID，如下所示：
+
+- 整个 URI 由 ASCII 子集组成，包含字母（`A-Z`、`a-z`）、数字（`0-9`）、句点、下划线、冒号、百分号或连字符（`._:%-`）
+- URI 区分大小写
+- URI 以小写字母`did:`开头
+- 方法段是一个或多个小写字母（`a-z`），后跟`:`
+- URI 的其余部分（标识符）可以包含任何上述允许的 ASCII 字符，百分号（`％`）除外
+- URI（以及剩余的标识符）不能以`:`结尾。
+- 百分号（'％'）用于标识符部分的“百分比编码”，并且必须始终跟有两个十六进制字符
+- 查询（“？”）和片段（“#”）部分允许出现在 DID URI 中，但不允许出现在 DID 标识符中。在 atproto 上下文中，不允许出现查询和片段部分。
+
+DID 标识符通常没有最大长度限制，但在 atproto 上下文中，初始硬限制为 2 KB。
+
+在 atproto 上下文中，实现不需要验证百分比编码。DID 标识符段中允许使用百分比符号，但标识符不应以百分比符号结尾。包含无效百分比编码的 DID *应该* 导致任何注册、解析等尝试失败。
+
+在 atproto 上下文中，DID 的合理起点正则表达式是：
+
+```
+// NOTE: does not constrain overall length
+/^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$/
+```
+
+
+### 示例
+
+在 atproto 中使用的有效 DID（正确的语法和支持的方法）：
+
+```
+did:plc:z72i7hdynmk6r22z27h6tvur
+did:web:blueskyweb.xyz
+```
+
+有效的 DID 语法（可以通过 Lexicon 语法验证），但不支持 DID 方法：
+
+```
+did:method:val:two
+did:m:v
+did:method::::val
+did:method:-:_:.
+did:key:zQ3shZc2QzApp2oymGvQbzP8eKheVshBHbU4ZYjeXqwSKEn6N
+```
+
+无效的 DID 标识符语法（无论采用何种 DID 方法）：
+
+```
+did:METHOD:val
+did:m123:val
+DID:method:val
+did:method:
+did:method:val/two
+did:method:val?two
+did:method:val#two
+```
+
+## DID 文档
+
+解析完 DID 文档后，需要提取特定于 atproto 的信息。此解析过程与用于解析文档的 DID 方法无关。
+
+DID 的当前 **handle** 位于 `alsoKnownAs` 数组中。此数组的每个元素都是一个 URI。handle 将具有 URI 方案 `at://`，后跟handle，没有路径或其他 URI 部分。当前主handle是在有序列表中找到的第一个有效handle URI。任何其他handle URI 都应被忽略。
+
+通过将句柄解析为 DID 并检查它是否与当前 DID 文档匹配，双向验证句柄至关重要。
+
+DID 是主要帐户标识符，理论上，DID 文档不包含有效且已确认句柄的帐户仍可以参与 atproto 生态系统。软件应注意，要么不显示此类帐户的任何句柄，要么明确指出与其关联的任何句柄均无效。
+
+帐户的公共**签名密钥**位于`verificationMethod`数组下，位于`id`以`#atproto`结尾的对象中，并且`controller`与DID本身匹配。应使用数组中第一个有效的atproto签名密钥，并忽略任何其他密钥。`type`字段将指示加密曲线类型，`publicKeyMultibase`字段将是多基编码中的公钥。有关解析这些字段的详细信息，请参阅下文。
+
+atproto 功能需要有效的签名密钥，DID 文档中没有有效密钥的帐户将被破坏。
+
+帐户的 **PDS 服务网络位置** 位于 `service` 数组下，`id` 以 `#atproto_pds` 结尾，`type` 匹配 `AtprotoPersonalDataServer`。应使用数组中第一个匹配的条目，并忽略其他条目。`serviceEndpoint` 字段必须包含服务器的 HTTPS URL。它应该仅包含 URI 方案（“http”或“https”）、主机名和可选端口号，而不包含任何“用户信息”、路径前缀或其他组件。
+
+atproto 帐户功能需要一个有效的 PDS，如果 DID 文档中没有有效的 PDS 位置，则帐户会被破坏。
+
+请注意，有效 URL 并不意味着 PDS 本身当前可以正常运行或托管帐户内容。在帐户迁移或服务器停机期间，PDS 可能会暂时无法访问，但这并不意味着应立即将帐户视为已损坏或无效。
+
+
+## 公钥的表示
+
+atproto 加密系统在 [密码学](/specs/cryptography) 中有描述，包括公钥的字节和字符串编码的详细信息。
+
+“verificationMethod” 下的 DID 文档中的公钥（包括 atproto 签名密钥）表示为具有以下字段的对象：
+
+- `id` (string, required): DID 后跟一个标识片段。使用 `#atproto` 作为 atproto 签名密钥的片段
+- `type` (string, required): 固定字符串 `Multikey`
+- `controller` (string, required): 控制密钥的 DID，在当前版本的 atproto 中必须与帐户 DID 本身匹配
+- `publicKeyMultibase` (string, required): 公钥本身，采用多库格式编码（带有多编解码器类型指示符和“压缩”密钥字节）
+
+`Multikey` 的 `publicKeyMultibase` 格式与 `did:key` 使用的编码方案相同，但没有 `did:key:` 前缀。有关详细信息，请参阅 [Cryptography](/specs/cryptography)。
+
+请注意，目前还没有在 DID `verificationMethod` 部分中使用 P-256 公钥的正式 W3C 标准，但 `Multikey` 标准确实阐明了此密钥类型的编码应该是什么。
+
+
+### Legacy Representation
+
+Some older DID documents, which may still appear in `did:web` docs, had slightly different key encodings and `verificationMethod` syntax. Implementations may support these older DID documents during a transition period, but the intentent is to require DID specification compliance going forward.
+
+The older `verificationMethod` for atproto signing keys contained:
+
+- `id` (string, required): the fixed string `#atproto`, without the full DID included
+- `type` (string, required): a fixed name identifying the key's curve type
+    - `p256`: `EcdsaSecp256r1VerificationKey2019` (note the "r")
+    - `k256`: `EcdsaSecp256k1VerificationKey2019` (note the "k")
+- `controller` (string, required): DID controlling the key, which in the current version of atproto must match the account DID itself
+- `publicKeyMultibase` (string, required): the public key itself, encoded in multibase format (*without* multicodec, and *uncompressed* key bytes)
+
+Note that the `EcdsaSecp256r1VerificationKey2019` type is not a final W3C standard.
+
+The `EcdsaSecp256r1VerificationKey2019` `verificationMethod` is not a final W3C standard. We will move to whatever ends up standardized by W3C for representing P-256 public keys with `publicKeyMultibase`. This may mean a transition to `Multikey`, and we would transition K-256 representations to that `type` as well.
+
+A summary of the multibase encoding in this context:
+
+- Start with the full public key bytes. Do not use the "compressed" or "compact" representation (unlike for `did:key` or `Multikey` encoding)
+- Do *not* prefix with a multicodec value indicating the key type
+- Encode the key bytes with `base58btc`, yielding a string
+- Add the character `z` as a prefix, to indicate the multibase, and include no other multicodec indicators
+
+The decoding process is the same in reverse, using the curve type as context.
+
+Here is an example of a single public key encoded in the legacy and current formats:
+
+```
+// legacy multibase encoding of K-256 public key
+{
+    "id": ...,
+    "controller": ...,
+    "type": "EcdsaSecp256k1VerificationKey2019",
+    "publicKeyMultibase": "zQYEBzXeuTM9UR3rfvNag6L3RNAs5pQZyYPsomTsgQhsxLdEgCrPTLgFna8yqCnxPpNT7DBk6Ym3dgPKNu86vt9GR"
+}
+
+// preferred multibase encoding of same K-256 public key
+{
+    "id": ...,
+    "controller": ...,
+    "type": "Multikey",
+    "publicKeyMultibase": "zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF"
+}
+```
+
+
+## Usage and Implementation Guidelines
+
+Protocol implementations should be flexible to processing content containing DIDs based on unsupported DID methods. This is important to allow gradual evolution of the protocol ecosystem over time. In other words, implementations should distinguish between at least the distinct cases "invalid DID syntax", "unsupported DID method" and "supported DID method, but specific DID resolution failed".
+
+While longer DIDs are supported in the protocol, a good best practice is to use relatively short DIDs, and to avoid DIDs longer than 64 characters.
+
+DIDs are case-sensitive. While the currently-supported methods are *not* case sensitive, and could be safely lowercased, protocol implementations should reject DIDs with invalid casing. It is permissible to attempt case normalization when receiving user-controlled input, such as when parsing public URL path components, or text input fields.
+
+## Possible Future Changes
+
+The hard maximum DID length limit may be reduced, at the protocol syntax level. We are not aware of any DID methods that we would consider supporting which have identifiers longer than, say, 256 characters.
+
+There is a good chance that the set of "blessed" DID methods will slowly expand over time.

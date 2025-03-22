@@ -1,0 +1,189 @@
+export const metadata = {
+  title: '存储',
+  description:
+    '公共账号内容自认证存储',
+}
+
+# 存储
+
+*请参阅 [数据存储库指南](../guides/data-repos) 以获得更高级别的介绍。*
+
+公共 atproto 内容（**records**）存储在每个帐户的存储库中（通常缩写为 **repo**）。所有当前活动的记录都存储在存储库中，当前存储库内容是公开的，但完全支持内容删除和帐户删除。{{ className: 'lead' }}
+
+存储库数据结构是内容寻址的（[Merkle-tree](https://en.wikipedia.org/wiki/Merkle_tree)），存储库内容的每次变更（例如，添加、删除和更新记录）都会产生新的提交 `data` 哈希值（CID）。提交经过加密签名，具有可轮换的签名密钥，允许对全部或部分内容进行递归验证。{{ className: 'lead' }}
+
+存储库及其内容通常以二进制 [DAG-CBOR](https://ipld.io/docs/codecs/known/dag-cbor/) 格式存储，作为通过内容哈希 (CID 链接) 相互引用的数据对象图。大型二进制 blob 不直接存储在存储库中，但它们通过哈希 ([CID](https://github.com/multiformats/cid)) 引用。这包括图像和其他媒体对象。存储库可以导出为 [CAR](https://ipld.io/specs/transport/car/carv1/) 文件，用于离线备份、帐户迁移或其他目的。{{ className: 'lead' }}
+
+在 atproto 联合架构中，账户存储库的权威位置是关联的个人数据服务器 (PDS)。账户当前的 PDS 位置在 DID 文档中权威地指明。{{ className: 'lead' }}
+
+在实际使用中，预计单个存储库将包含数十到数百万条记录。{{ className: 'lead' }}
+
+
+## Repo 数据结构 (v3)
+
+这描述了存储库二进制格式的版本`3`。
+
+版本`2`具有略微不同的提交对象模式，但与`3`基本兼容。
+
+版本`1`具有不同的 MST（Merkle 搜索树） 扇出配置，并且提交和存储库元数据的架构不兼容。版本`1`已弃用，网络中不存在此格式的存储库，并且实现不需要支持它。
+
+从高层次上讲，存储库是一个键/值映射，其中键是路径名（作为字符串），值是记录（DAG-CBOR 对象）。
+
+**Merkle 搜索树** (MST) 用于存储此映射。此内容寻址的确定性数据结构按键排序顺序存储数据。它对于键查找、键范围扫描和附加（假设已排序的记录路径）相当高效。此学术出版物中描述了 MST 的一般属性：
+
+> Alex Auvolat、François Taïani。Merkle 搜索树：开放网络中基于状态的高效 CRDT。SRDS 2019 - 第 38 届 IEEE 可靠分布式系统国际研讨会，2019 年 10 月，法国里昂。第 1-10 页，ff10.1109/SRDS.2019.00032 ([pdf](https://inria.hal.science/hal-02303490/document))
+
+下面介绍了 atproto 存储库中使用的 MST 的具体细节。
+
+存储库路径是字符串，而 MST 键是字节数组。两者都不能为空（零长度）。虽然存储库路径字符串目前仅限于 ASCII 子集（使编码成为无操作），但编码指定为 UTF-8。
+
+目前，Repo 路径具有固定结构 `<collection>/<record-key>`。这意味着一个有效的、规范化的 [NSID](./nsid)，后跟一个 `/`，再后跟一个有效的 [Record Key](./record-key)。路径不应以 `/` 开头，并且应始终包含两个路径段。整个路径字符串中允许的 ASCII 字符目前为：字母（`A-Za-z`）、数字（`0-9`）、斜杠（`/`）、句点（`.`）、连字符（`-`）、下划线（`_`）和波浪符号（`~`）。特定路径段 `.` 和 `..` 不是有效的 NSID 或记录键，在 repo 路径中始终不允许使用。
+
+请注意，同一个集合中所有记录的存储库路径在 MST 中一起排序，从而使枚举（通过密钥扫描）和导出更加高效。此外，特意选择了 TID 记录密钥方案，以便在集合范围内按时间顺序对 MST 密钥进行排序。在树中，追加比随机插入/变异更有效，并且在枚举集合中的记录时，它们将按时间顺序排列（假设 TID 生成正确完成，但一般情况下不能依赖这一点）。
+
+
+### 提交对象
+
+存储库中的顶级数据对象是已签名的提交。数据字段包括：
+
+- `did` (string, required): 与 repo 关联的帐户 DID，采用严格规范的格式（例如，根据需要小写）
+- `version` (integer, required): 此 repo 格式版本的固定值是`3`
+- `data` (CID link, required): 指向 repo 内容树结构 (MST) 顶部的指针
+- `rev` (string, TID format, required): 存储库的修订版本，用作逻辑时钟。必须单调增加。建议使用当前时间戳作为 TID；应忽略“未来”的`rev`值（超出模糊因素），不进行处理。
+- `prev` (CID link, nullable): 指向此存储库的先前提交对象的指针（通过哈希）。可用于创建历史链，但基本上未使用（包括 v2 向后兼容性）。在版本`3`存储库中，此字段必须存在于 CBOR 对象中，但几乎始终为`null`。注意：`prev` 指定为可空和可选，但这会导致互操作性问题。
+- `sig` (byte array, required): 此提交的加密签名，作为原始字节
+
+UnsignedCommit 数据对象具有除`sig`之外的所有相同字段。签署提交的过程是填充所有数据字段，然后使用 DAG-CBOR 序列化 UnsignedCommit。然后使用 SHA-256 对输出字节进行哈希处理，然后使用帐户的当前“签名密钥”对二进制哈希输出（无十六进制编码）进行签名。然后，签名将作为原始字节与所有其他数据字段一起存储在提交对象中。
+
+总体而言，提交的 CID 是通过将 *签名* 提交对象序列化为 DAG-CBOR 生成的。请参阅下面有关“blessed” CID 格式的注释，特别是确保使用 `dag-cbor` 多编解码器来链接到提交对象。
+
+请注意，签名本身和签名提交均未指示所用密钥的类型（曲线类型）或所用的特定公钥。该信息必须从帐户的 DID 文档中获取。随着密钥轮换，较旧提交签名的验证可能会变得模棱两可。最近的提交应始终可使用当前 DID 文档进行验证。这意味着每次轮换签名密钥时都应创建一个新的存储库提交。这样的提交不需要更新 `data` CID 链接。
+
+### MST 结构
+
+从高层次来看，存储库 MST 是一个键/值映射，其中键是非空字节数组，值是指向记录的 CID 链接。MST 数据结构应该可以从这种字节串到 CID 的映射中完全重现，并且具有完全可重现的根 CID 哈希（又名提交对象中的`data` 字段）。
+
+树结构中的每个节点都包含一组键/CID 映射，以及指向其他子树节点的链接。条目和链接按键排序，链接子树的所有键（递归）都落在与链接位置对应的范围内。排序顺序是从**左**（词汇上优先）到**右**（词汇上后）。每个键都有一个从键本身派生的**深度**，这决定了它最终位于哪个子树中。树中的顶部节点包含具有最高深度值的所有键（对于小树，深度可能全部为零，因此是单个节点）。整个节点左侧或右侧的链接，或节点中任意两个键之间的链接，指向包含落在相应键范围内的键的子树节点。
+
+An empty repository with no records is represented as a single MST node with an empty array of entries. This is the only situation in which a tree may contain an empty leaf node which does not either contain keys ("entries") or point to a sub-tree containing entries. The top of the tree must not be a an empty node which only points to a sub-tree. Empty intermediate nodes are allowed, as long as they point to a sub-tree which does contain entries. In other words, empty nodes must be pruned from the top and bottom of the tree, but empty intermediate nodes must be kept, such that sub-tree links do not skip a level of depth. The overall structure and shape of the MST is deterministic based on the current key/value content, regardless of the history of insertions and deletions that lead to the current contents.
+
+For the atproto MST implementation, the hash algorithm used is SHA-256 (binary output), counting "prefix zeros" in 2-bit chunks, giving a fanout of 4. To compute the depth of a key:
+
+- hash the key (a byte array) with SHA-256, with binary output
+- count the number of leading binary zeros in the hash, and divide by two, rounding down
+- the resulting positive integer is the depth of the key
+
+Some examples, with the given ASCII strings mapping to byte arrays:
+
+- `2653ae71`: depth "0"
+- `blue`: depth "1"
+- `app.bsky.feed.post/454397e440ec`: depth "4"
+- `app.bsky.feed.post/9adeb165882c`: depth "8"
+
+There are many MST nodes in repositories, so it is important that they have a compact binary representation, for storage efficiency. Within every node, keys (byte arrays) are compressed by eliding common prefixes, with each entry indicating how many bytes it shares with the previous key in the array. The first entry in the array for a given node must contain the full key, and a common prefix length of 0. This key compaction is internal to nodes, it does not extend across multiple nodes in the tree. The compaction scheme is mandatory, to ensure that the MST structure is deterministic across implementations.
+
+The node data schema fields are:
+
+- `l` ("left", CID link, nullable): link to sub-tree Node on a lower level and with all keys sorting before keys at this node
+- `e` ("entries", array of objects, required): ordered list of TreeEntry objects
+    - `p` ("prefixlen", integer, required): count of bytes shared with previous TreeEntry in this Node (if any)
+    - `k` ("keysuffix", byte array, required): remainder of key for this TreeEntry, after "prefixlen" have been removed
+    - `v` ("value", CID Link, required): link to the record data (CBOR) for this entry
+    - `t` ("tree", CID Link, nullable): link to a sub-tree Node at a lower level which has keys sorting after this TreeEntry's key (to the "right"), but before the next TreeEntry's key in this Node (if any)
+
+When parsing MST data structures, the depth and sort order of keys should be verified. This is particularly true for untrusted inputs, but is simplest to just verify every time. Additional checks on node size and other parameters of the tree structure also need to be limited; see the "Security Considerations" section of this document.
+
+### CID Formats
+
+The IPFS CID specification is very flexible, and supports a wide variety of hash types, a field indicating the type of content being linked to, and various string encoding options. These features are valuable to allow evolution of the repo format over time, but to maximize interoperability among implementations, only a specific "blessed" set of CID types are allowed.
+
+The blessed format for commit objects and MST node objects, when linking to commit objects, MST nodes (aka, `data`, or MST internal links), or records (aka, MST leaf nodes to records), is:
+
+- CIDv1
+- Multibase: binary serialization within DAG-CBOR (or `base32` for JSON mappings)
+- Multicodec: `dag-cbor` (0x71)
+- Multihash: `sha-256` with 256 bits (0x12)
+
+In the context of repositories, it is also desirable for the overall data structure to be reproducible given the contents, so the allowed CID types are strictly constrained and enforced. Commit objects with non-compliant `prev` or `data` links are considered invalid. MST Node objects with non-compliant links to other MST Node objects are considered invalid, and the entire MST data structure invalid.
+
+More flexibility is allowed in processing the "leaf" links from MST to records, and implementations should retain the exact CID links used for these mappings, instead of normalizing. Implementations should strictly follow the CID blessed format when generating new CID Links to records.
+
+
+## CAR File Serialization
+
+The standard file format for storing data objects is Content Addressable aRchives (CAR). The standard repository export format for atproto repositories is [CAR v1](https://ipld.io/specs/transport/car/carv1/), which have file suffix `.car` and mimetype `application/vnd.ipld.car`.
+
+The CARv1 format is very simple. It contains a small metadata header (which can indicate one or more "root" CID links), and then a series of binary "blocks", each of which is a data object. In the context of atproto repositories:
+
+- The first element of the CAR `roots` metadata array must be the CID of the most relevant Commit object. for a generic export, this is the current (most recent) commit. additional CIDs may also be present in the `roots` array, with (for now) undefined meaning or order
+- For full exports, the full repo structure must be included for the indicated commit, which includes all records and all MST nodes
+- The order of blocks within the CAR file is not currently defined or restricted. implementations may have a "preferred" ordering, but should be tolerant of unexpected ordering
+- Additional blocks, including records, may or may not be included in the CAR file
+
+When importing CAR files, note that there may existing dangling CID references. For example, repositories may contain CID Links to blobs or records in other repositories, and the blocks corresponding to those blobs or references would likely not be included in the CAR file.
+
+The CARv1 specification is agnostic about the same block appearing multiple times in the same file ("Duplicate Blocks)". Implementations should be robust to both duplication and de-duplication of blocks, and should also ignore any unnecessary or unlinked blocks.
+
+## Repository Diffs
+
+A concept which supports efficient synchronization of data between independent services is "diffs" of repository trees between different revisions. The basic principle is that a repository diff contains all the data (commit object, MST nodes, and records) that have changed between an older revision and the current revision of a repo. The diff can be "applied" to the older mirror of the repository, and the result will be the complete MST tree at the current (newer) commit revision.
+
+Repo diffs can be serialized as CAR files, sometimes referred to as "CAR slices". Some details about diff CAR slices:
+
+- same format, version, and atproto-specific constraints as full repo export CAR files
+    - blocks "should" be de-duplicated by CID (only one copy included), though receiving implementations must be resilient to duplication
+- the root CID indicated in the CAR header (the first element of `roots`) should point to the commit block (which must be included)
+- any required blocks must be included even if they have appeared in the history of the repository previously. eg, if a record is created in rev C, deleted in rev F, and re-created in rev N, the diff "since F" must include the record block
+- all "created" records must be included
+- any records which have been "deleted" and do not exist in the current repo should not be included
+- any records which have been "updated" should include the final version, and should not include the previous version
+- all MST nodes in the current repo which didn't exist in the previous repo version must be included
+- with the exception of removed record data, the diff may include additional blocks, which receivers should ignore.
+  - however, diffs which intentionally contain a large amount of irrelevant block data to consume network or compute resources are considered a form of network abuse.
+
+The diff is a partial Merkle tree, including a signed commit, and can be partially verified. This means that an observer which has successfully resolved the identity of the relevant account (including cryptographic public keys) can verify certain aspects of the data. The diff is a reliable "proof chain" for creation and updates of records: an observer can verify that the new or updated records have the specific record values in the overall repo as of the commit revision. If the observer knows of specific records (by repo path, or by full AT-URI) that have been deleted, they can verify that those records no longer exist in the repo as of the final commit revision.
+
+However, an observer which does not know the full state of the repository at the "older" revision *can not* reliably enumerate all of the records that have been removed from the repository. Such an observer also can not see the previous values of deleted or updated records, either as full values or by CID. Note that the later is an intentional design goal for the diff concept: it is desired that content deletion happen rapidly and not "draw attention" to the content which has been deleted. It is technically possible for "archival" observers to track deletion events and lookup the previous content value, but this requires additional resources and effort.
+
+Sometimes repo diffs are generated automatically. For example, every commit to a repo can result in a diff against the immediately preceding commit. In other contexts, diffs are generated on demand: a diff can be requested "since" an arbitrary previous revision. It is not expected that repo hosts support generating diffs between two arbitrary revisions, only "from" an arbitrary older revision and the current revision. Repo hosts are not required to maintain a complete history of prior commits/revisions, and in some cases (such as account migration) may never have had prior repo history. Some details about how to interpret and service requests for diffs "since" a prior revision:
+
+- it is helpful to track internally the commit revision when a block (record or MST node) was created or re-created. This enables querying blocks "since" a point in time
+- "since" revisions are not expected to be an exact match
+    - for example, if a repo had a sequence of commits "333", "666", "999", and a "since" value of "444" was requested, the changes in "666" and "999" should be included, as if the "since" parameter was "666"..
+- a host is allowed to include additional history, but is encouraged to return the minimal or most granular requested data
+    - for example, a host may have "compacted" repo rev history to a smaller number of commits. If a repo had commit history "288", "300", "320", "340", "400", and got a request "since" 340, it might return all changes since 300. Hosts are encouraged to return the smallest diff when possible (eg, “since” 340), but clients should be resilient.
+- if a host receives a “since” request earlier than the oldest available revision for a repository, it should return the full repository. This may happen if the host does not have the complete history of the repository.
+    - for example, if a repository had revisions "140", "150", and "160", then migrated to a new PDS and revisions continued "161" and "170", if the new PDS is asked for a diff "since" 150, the new PDS would probably need to return the full repository, because the earliest revision it would be aware of was "160" or "161" (depending on how migration was implemented).
+
+In the specific case of chained commit-to-commit diffs which appear on the firehose, diffs should be "minimal": they should not contain additional records or additional history.
+
+## Security Considerations
+
+Repositories are untrusted input: accounts have full control over repository contents, and PDS instances have full control over binary encoding. It is important to handle possible denial of service vectors from both hostile actors or accidental situations (eg, corrupted data or buggy implementations).
+
+Generic precautions should be followed with CBOR decoding: a maximum serialized object size, a maximum recursion depth for nested fields, maximum memory budget for deserialized data, etc. Some CBOR libraries include these precautions by default, but others do not.
+
+The efficiency of the MST data structure depends on key hashes being relatively randomly dispersed. Because accounts have control over Record Keys, they can mine for sets of record keys with particular depths and sorting order, which result in inefficient tree shapes, which can cause both large storage overhead, and network amplification in the context of federation streams. To protect against these attacks, implementations should limit the number of TreeEntries per Node to a statistically unlikely maximum length. It may also be necessary to limit the overall depth of the repo, or other parameters, to prevent more sophisticated key mining attacks.
+
+When importing CAR files, the completeness of the repository structure should be verified. Additional unrelated blocks might be included in the CAR structure; care should be taken when injecting CAR contents directly in to backend block storage, to ensure resources are not wasted on un-referenced blocks. There may also be issues with cross-account contamination from CAR imports, for example previously-deleted records re-appearing via CAR import from an unrelated account.
+
+
+## Possible Future Changes
+
+An optional in-repo mechanism for storing multiple versions of the same record (by path) may be implemented. Eg, adding additional path field to indicate the version by CID, timestamp, or monotonically increasing version integer.
+
+Mechanisms for storing metadata associated with each record are being considered, for example, generic label, re-use rights, or hashtag metadata. This would allow mutating the metadata without mutating the record itself, and make some metadata generic across lexicons.
+
+Repo path restrictions may be relaxed in other ways, including fewer or additional path segments, more allowed characters (including non-ASCII), etc. Paths will always be valid Unicode strings, mapped to MST keys (byte arrays) by UTF-8 encoding.
+
+At the overall atproto specification level, additional "blessed" cryptographic algorithms may be added over time. Likewise, additional CID formats to reference records and blobs may be added. Internal CID format changes would require a repo format version bump.
+
+Repository CAR exports may include linked "blobs" (larger binary files). This might become the default, or a configurable option, or some another mechanism for blob export might be chosen (eg, `.tar` or `.zip` export).
+
+Record content could conceivably be something other than DAG-CBOR some day. This would probably be a repo format version bump. Note that it is possible to efficiently wrap other data formats in a DAG-CBOR wrapper (via a byte array field), or to have a small DAG-CBOR record type that links to a blob in arbitrary format.
+
+Repository CAR exports may end up with a preferred block ordering scheme specified.
+
+The CARv2 file format, which includes optimizations for some use cases, may be adopted in some form.
+
+Adding optional fields to commit and MST node objects may or may not result in a repo format version change. Changing the MST fanout, or any changes to the current MST fields, would be a full repo version change.
